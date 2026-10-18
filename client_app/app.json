@@ -1,0 +1,73 @@
+{
+  "expo": {
+    "name": "Noti",
+    "slug": "client",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "backgroundColor": "#ffffff"
+    },
+    "notification": {
+      "icon": "./assets/icon.png",
+      "color": "#e11d48",
+      "androidMode": "default"
+    },
+    "plugins": [
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "reactNativeArchitectures": "arm64-v8a"
+          }
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#e11d48",
+          "defaultChannel": "messages"
+        }
+      ],
+      "expo-video"
+    ],
+    "ios": {
+      "bundleIdentifier": "com.khalil.contactht",
+      "supportsTablet": true,
+      "splash": {
+        "backgroundColor": "#ffffff"
+      }
+    },
+    "android": {
+      "package": "com.khalil.contactht",
+      "permissions": [
+        "INTERNET",
+        "POST_NOTIFICATIONS",
+        "VIBRATE",
+        "CAMERA"
+      ],
+      "softwareKeyboardLayoutMode": "resize",
+      "googleServicesFile": "./google-services.json",
+      "adaptiveIcon": {
+        "backgroundColor": "#ffffff",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "splash": {
+        "backgroundColor": "#ffffff"
+      }
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "5b04062e-74df-4bd7-b484-8a1ccaa901b7"
+      }
+    },
+    "owner": "kmejri"
+  }
+}
