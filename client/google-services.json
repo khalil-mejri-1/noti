@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1069117548539",
+    "project_id": "noti-32ae0",
+    "storage_bucket": "noti-32ae0.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1069117548539:android:31f6969eae0173d3f54d5e",
+        "android_client_info": {
+          "package_name": "com.khalil.contactht"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDHBRVgWxeCVLj54-pkdOUufjQvCXFKfus"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

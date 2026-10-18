@@ -1,0 +1,47 @@
+# Dependencies
+node_modules/
+*/node_modules/
+**/node_modules/
+
+# Environment and sensitive keys
+.env
+.env.*
+*.env
+**/.env
+**/.env.*
+!.env.example
+!**/.env.example
+*serviceAccount*.json
+**/*serviceAccount*.json
+*service-account*.json
+**/*service-account*.json
+*service_account*.json
+**/*service_account*.json
+firebase-service-account.json
+**/firebase-service-account.json
+
+# Builds & large binaries
+*.apk
+**/*.apk
+*.zip
+**/*.zip
+app-release.apk
+
+# Expo / React Native
+.expo/
+**/.expo/
+client/.expo/
+client/.git_backup/
+client/dist/
+client/web-build/
+client/android/
+client/ios/
+client/*.jks
+client/*.keystore
+
+# Logs & temp
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.DS_Store
+Thumbs.db
