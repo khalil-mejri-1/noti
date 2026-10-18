@@ -1840,13 +1840,13 @@ export default function App() {
 
         if (pageY !== null) {
           const msgTop = pageY - locationY;
-          if (msgTop > 150) {
+          if (msgTop > 180) {
             targetTop = msgTop - 56;
           } else {
-            targetTop = Math.max(92, pageY + 45);
+            targetTop = Math.max(120, pageY + 48);
           }
           targetTop = Math.min(targetTop, screenHeight - 175);
-          targetTop = Math.max(90, targetTop);
+          targetTop = Math.max(120, targetTop);
         }
         targetTop = Math.round(targetTop);
         setReactionPosition({ top: targetTop, isMe });
@@ -8819,7 +8819,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 100005,
-    elevation: 35,
+    elevation: 25,
   },
   floatingReactionEmojisCapsule: {
     flexDirection: 'row',
@@ -8835,7 +8835,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.22,
     shadowRadius: 16,
-    elevation: 35,
+    elevation: 25,
     borderWidth: 1,
     borderColor: '#e2e8f0',
   },
