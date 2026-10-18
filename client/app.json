@@ -41,7 +41,7 @@
         "CAMERA"
       ],
       "softwareKeyboardLayoutMode": "resize",
-      "googleServicesFile": "./android/app/google-services.json",
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "backgroundColor": "#ffffff",
         "foregroundImage": "./assets/android-icon-foreground.png",

@@ -2,3 +2,9 @@
 **/build/**
 node_modules
 *.apk
+.git_backup
+.git_backup/**
+.git
+.git/**
+android
+android/**
