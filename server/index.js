@@ -421,8 +421,13 @@ app.post('/api/register', async (req, res) => {
   }
 });
 
-// Route de connexion (Login)
+// Route de connexion (Login) - Recherche directe et immédiate dans la base de données MongoDB
 app.post('/api/login', async (req, res) => {
+  // منع أي تخزين مؤقت للطلب أو الاستجابة لضمان التحقق من قاعدة البيانات دائماً
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+
   try {
     const { email, password } = req.body;
 
@@ -430,12 +435,16 @@ app.post('/api/login', async (req, res) => {
       return res.status(400).json({ message: 'L\'email et le mot de passe sont obligatoires.' });
     }
 
-    const user = await User.findOne({ email: email.toLowerCase() });
+    const cleanEmail = String(email).trim().toLowerCase();
+    const cleanPassword = String(password).trim();
+
+    // البحث المباشر في قاعدة البيانات MongoDB Atlas بدون أي كاش
+    const user = await User.findOne({ email: cleanEmail }).exec();
     if (!user) {
       return res.status(404).json({ message: 'Utilisateur introuvable.' });
     }
 
-    if (user.password !== password) {
+    if (user.password !== cleanPassword) {
       return res.status(400).json({ message: 'Mot de passe incorrect.' });
     }
 
@@ -443,7 +452,7 @@ app.post('/api/login', async (req, res) => {
     user.lastSeen = new Date();
     await user.save();
 
-    console.log(`🔓 Connexion réussie pour : ${user.email}`);
+    console.log(`🔓 Connexion réussie depuis la base de données pour : ${user.email}`);
 
     res.status(200).json({
       message: 'Connexion réussie !',
@@ -457,6 +466,35 @@ app.post('/api/login', async (req, res) => {
   } catch (error) {
     console.error('Erreur connexion :', error.message);
     res.status(500).json({ message: 'Erreur lors de la connexion.', error: error.message });
+  }
+});
+
+// Route de validation directe d'un utilisateur dans la base MongoDB (évite le cache local)
+app.get('/api/users/validate/:id', async (req, res) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+
+  try {
+    const { id } = req.params;
+    if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ valid: false, message: 'ID invalide' });
+    }
+    const user = await User.findById(id).select('name email isOnline lastSeen').exec();
+    if (!user) {
+      return res.status(404).json({ valid: false, message: 'Utilisateur introuvable dans la base' });
+    }
+    res.json({
+      valid: true,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        isOnline: true,
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ valid: false, message: err.message });
   }
 });
 

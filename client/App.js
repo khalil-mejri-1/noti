@@ -1540,7 +1540,7 @@ export default function App() {
     };
   }, []);
 
-  // استعادة بيانات الحساب المحفوظة في الكاش (AsyncStorage) تلقائياً عند فتح التطبيق
+  // التحقق المباشر من قاعدة البيانات MongoDB عند فتح التطبيق والتأكد من وجود وصحة الحساب
   useEffect(() => {
     let isMounted = true;
     const restoreSavedSession = async () => {
@@ -1548,12 +1548,35 @@ export default function App() {
         const savedSessionJson = await SafeAsyncStorage.getItem(USER_SESSION_KEY);
         if (savedSessionJson) {
           const savedUser = JSON.parse(savedSessionJson);
-          if (savedUser && (savedUser.id || savedUser._id)) {
-            if (!savedUser.id && savedUser._id) savedUser.id = savedUser._id;
-            console.log('⚡ تم استرجاع جلسة الحساب المحفوظة بنجاح:', savedUser.name || savedUser.email);
+          const userId = savedUser?.id || savedUser?._id;
+          if (userId) {
+            // التحقق المباشر من MongoDB في قاعدة البيانات لضمان عدم الاعتماد على الكاش
+            try {
+              const verifyRes = await fetch(`${apiUrl}/api/users/validate/${userId}`, {
+                headers: {
+                  'Cache-Control': 'no-cache, no-store, must-revalidate',
+                  'Pragma': 'no-cache',
+                },
+              });
+              const verifyData = await safeJsonFetch(verifyRes);
+              if (verifyRes.ok && verifyData?.valid && verifyData?.user) {
+                if (isMounted) {
+                  setCurrentUser({
+                    ...verifyData.user,
+                    id: verifyData.user.id || verifyData.user._id,
+                  });
+                  setActiveScreen('tasks');
+                }
+                return;
+              }
+            } catch (networkErr) {
+              // عند تعذر الاتصال بالخادم، لا نسجل الدخول تلقائياً من الكاش
+            }
+
+            // إذا لم يتم العثور على الحساب في قاعدة البيانات، إلغاء الكاش فوراً
+            await SafeAsyncStorage.removeItem(USER_SESSION_KEY);
             if (isMounted) {
-              setCurrentUser(savedUser);
-              setActiveScreen('tasks');
+              setCurrentUser(null);
             }
           }
         }
@@ -1570,7 +1593,7 @@ export default function App() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [apiUrl]);
 
   // حالة المصادقة (تسجيل دخول / إنشاء حساب)
   const [isLogin, setIsLogin] = useState(true);
@@ -2528,14 +2551,17 @@ export default function App() {
     }, 50);
   };
 
-  // Exécution de la connexion ou de la création de compte
+  // Exécution de la connexion ou de la création de compte (Recherche directe dans MongoDB sans cache)
   const handleAuthSubmit = async () => {
     if (submittingAuthRef.current || authLoading) return;
     submittingAuthRef.current = true;
     Keyboard.dismiss();
     setAuthError('');
 
-    if (!email.trim() || !password.trim()) {
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanPassword = password.trim();
+
+    if (!cleanEmail || !cleanPassword) {
       setAuthError('Veuillez renseigner votre adresse e-mail et votre mot de passe.');
       submittingAuthRef.current = false;
       return;
@@ -2551,13 +2577,24 @@ export default function App() {
     const endpoint = isLogin ? '/api/login' : '/api/register';
     const fullName = isLogin ? '' : `${firstName.trim()} ${lastName.trim()}`;
     const payload = isLogin
-      ? { email: email.trim(), password }
-      : { name: fullName, email: email.trim(), password };
+      ? { email: cleanEmail, password: cleanPassword }
+      : { name: fullName, email: cleanEmail, password: cleanPassword };
+
+    // مسح أي جلسة قديمة في الكاش لضمان التحقق النظيف والمباشر من قاعدة البيانات
+    try {
+      await SafeAsyncStorage.removeItem(USER_SESSION_KEY);
+    } catch (e) { }
 
     try {
+      // إرسال الطلب مباشرة لقاعدة البيانات مع ترويسات منع أي كاش وسيط
       const res = await fetch(`${apiUrl}${endpoint}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0',
+        },
         body: JSON.stringify(payload),
       });
 
@@ -2573,10 +2610,7 @@ export default function App() {
       setCurrentUser(userData);
       try {
         await SafeAsyncStorage.setItem(USER_SESSION_KEY, JSON.stringify(userData));
-        console.log('💾 الجلسة حُفظت بنجاح في التخزين المحلي (AsyncStorage)');
-      } catch (cacheErr) {
-        // تم الحفظ في الذاكرة بنجاح
-      }
+      } catch (cacheErr) { }
       setPassword('');
       setAuthError('');
       setActiveScreen('tasks');
