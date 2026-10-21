@@ -38,6 +38,13 @@
       "supportsTablet": true,
       "splash": {
         "backgroundColor": "#ffffff"
+      },
+      "infoPlist": {
+        "NSCameraUsageDescription": "Cette application nécessite l'accès à l'appareil photo pour vous permettre de capturer et envoyer des photos et des vidéos.",
+        "NSPhotoLibraryUsageDescription": "Cette application nécessite l'accès à votre galerie pour vous permettre de sélectionner et envoyer des photos et des vidéos.",
+        "NSPhotoLibraryAddUsageDescription": "Cette application nécessite la permission d'enregistrer des médias dans votre galerie.",
+        "NSMicrophoneUsageDescription": "Cette application nécessite l'accès au microphone pour l'enregistrement audio des vidéos.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {

@@ -282,20 +282,33 @@ const ReplyIcon = ({ color = '#ffffff', size = 18 }) => (
   </Svg>
 );
 
-// أيقونة صحين القراءة المزدوجين باللون الأسود الملكي (Double Check)
-const DoubleCheckIcon = ({ color = '#0f1117' }) => (
-  <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
+// أيقونة صحين القراءة المزدوجين باللون الأزرق الملكي أو المخصص (Double Check)
+const DoubleCheckIcon = ({ color = '#2563eb', size = 15 }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
     <Path
       d="M18 6L7 17l-5-5"
       stroke={color}
-      strokeWidth="2.2"
+      strokeWidth="2.3"
       strokeLinecap="round"
       strokeLinejoin="round"
     />
     <Path
       d="M22 10l-7.5 7.5-2.5-2.5"
       stroke={color}
-      strokeWidth="2.2"
+      strokeWidth="2.3"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </Svg>
+);
+
+// أيقونة صح مفردة فاخرة تبين أن الرسالة مرسلة وبانتظار المشاهدة (Single Check)
+const SingleCheckIcon = ({ color = '#94a3b8', size = 14 }) => (
+  <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <Path
+      d="M20 6L9 17l-5-5"
+      stroke={color}
+      strokeWidth="2.3"
       strokeLinecap="round"
       strokeLinejoin="round"
     />
@@ -2864,17 +2877,43 @@ export default function App() {
       const data = await safeJsonFetch(res);
       if (res.ok && Array.isArray(data)) {
         const uniqueMessages = deduplicateById(data);
+
+        // إذا كان الطرف الآخر قد أرسل رسائل ولم تُقرأ بعد وأنا فاتح للمحادثة، وضع علامة مقروءة فوراً
+        const hasUnreadFromOther = uniqueMessages.some(
+          (m) => !m.read && (m.sender?._id === otherUserId || m.sender === otherUserId)
+        );
+        if (hasUnreadFromOther) {
+          markMessagesAsRead(otherUserId);
+        }
+
         setMessages((prev) => {
           if (
             uniqueMessages.length === prev.length &&
-            uniqueMessages.length > 0 &&
-            uniqueMessages[uniqueMessages.length - 1]._id === prev[prev.length - 1]._id
+            uniqueMessages.length > 0
           ) {
-            return prev;
+            const isIdentical =
+              uniqueMessages[uniqueMessages.length - 1]._id === prev[prev.length - 1]._id &&
+              uniqueMessages.every((m, idx) => {
+                const pm = prev[idx];
+                return pm && pm._id === m._id && pm.read === m.read;
+              });
+            if (isIdentical) {
+              return prev;
+            }
           }
-          setTimeout(() => {
-            chatFlatListRef.current?.scrollToEnd({ animated: true });
-          }, 60);
+
+          const isNewMessage =
+            uniqueMessages.length > prev.length ||
+            (uniqueMessages.length > 0 &&
+              prev.length > 0 &&
+              uniqueMessages[uniqueMessages.length - 1]._id !== prev[prev.length - 1]._id);
+
+          if (isNewMessage) {
+            setTimeout(() => {
+              chatFlatListRef.current?.scrollToEnd({ animated: true });
+            }, 60);
+          }
+
           return uniqueMessages;
         });
       }
@@ -4452,9 +4491,17 @@ export default function App() {
                                         {unreadCount}
                                       </Text>
                                     </View>
-                                  ) : (
-                                    <DoubleCheckIcon color="#0f1117" />
-                                  )}
+                                  ) : item.isLastMessageMine ? (
+                                    item.lastMessageRead ? (
+                                      <View style={styles.convReadBadge}>
+                                        <DoubleCheckIcon size={14} color="#2563eb" />
+                                      </View>
+                                    ) : (
+                                      <View style={styles.convUnreadBadge}>
+                                        <SingleCheckIcon size={13} color="#94a3b8" />
+                                      </View>
+                                    )
+                                  ) : null}
                                 </View>
                               </View>
                             </TouchableOpacity>
@@ -5118,6 +5165,18 @@ export default function App() {
                                           {isSelected && <CheckIcon color="#ffffff" size={12} />}
                                         </View>
                                       )}
+                                      {/* شارة حالة القراءة الفاخرة أمام الرسالة مباشرة */}
+                                      <View style={styles.statusReceiptOuter}>
+                                        {item.read ? (
+                                          <View style={styles.receiptBadgeRead}>
+                                            <DoubleCheckIcon size={12} color="#2563eb" />
+                                          </View>
+                                        ) : (
+                                          <View style={styles.receiptBadgeUnread}>
+                                            <SingleCheckIcon size={11} color="#94a3b8" />
+                                          </View>
+                                        )}
+                                      </View>
                                       <View
                                         style={[
                                           styles.myBubble,
@@ -5236,9 +5295,30 @@ export default function App() {
                                         )}
                                       </View>
                                     </View>
-                                    {/* يظهر الوقت فقط عند النقر على الرسالة */}
+                                    {/* يظهر الوقت وحالة القراءة عند النقر على الرسالة */}
                                     {isTimeVisible && (
-                                      <Text style={styles.myMessageTime}>{timeStr}</Text>
+                                      <View style={styles.myMessageTimeRow}>
+                                        <Text style={styles.myMessageTime}>{timeStr}</Text>
+                                        <View style={styles.myMessageTimeDot} />
+                                        <View
+                                          style={[
+                                            styles.myMessageTimePill,
+                                            item.read ? styles.timePillRead : styles.timePillUnread,
+                                          ]}
+                                        >
+                                          {item.read ? (
+                                            <>
+                                              <DoubleCheckIcon size={11} color="#2563eb" />
+                                              <Text style={styles.timePillTextRead}>Vu</Text>
+                                            </>
+                                          ) : (
+                                            <>
+                                              <SingleCheckIcon size={10} color="#64748b" />
+                                              <Text style={styles.timePillTextUnread}>Envoyé</Text>
+                                            </>
+                                          )}
+                                        </View>
+                                      </View>
                                     )}
                                   </TouchableOpacity>
                                 ) : (
@@ -6989,9 +7069,83 @@ const styles = StyleSheet.create({
   myMessageTime: {
     fontSize: 11,
     color: '#9ca3af',
-    marginTop: 3,
-    marginRight: 4,
     fontWeight: '500',
+  },
+  statusReceiptOuter: {
+    marginRight: 6,
+    marginBottom: 4,
+    alignSelf: 'flex-end',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  receiptBadgeUnread: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  receiptBadgeRead: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#eff6ff',
+    borderWidth: 1,
+    borderColor: '#bfdbfe',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#2563eb',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.16,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  myMessageTimeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+    marginRight: 4,
+  },
+  myMessageTimeDot: {
+    width: 3,
+    height: 3,
+    borderRadius: 1.5,
+    backgroundColor: '#cbd5e1',
+    marginHorizontal: 6,
+  },
+  myMessageTimePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  timePillUnread: {
+    backgroundColor: '#f1f5f9',
+  },
+  timePillRead: {
+    backgroundColor: '#eff6ff',
+  },
+  timePillTextUnread: {
+    fontSize: 10,
+    color: '#64748b',
+    fontWeight: '600',
+    marginLeft: 3,
+  },
+  timePillTextRead: {
+    fontSize: 10,
+    color: '#2563eb',
+    fontWeight: '700',
+    marginLeft: 3,
+  },
+  convReadBadge: {
+    padding: 2,
+  },
+  convUnreadBadge: {
+    padding: 2,
   },
   // شريط معاينة الرد فوق حقل الكتابة
   replyPreviewBar: {

@@ -677,6 +677,7 @@ app.get('/api/conversations/:userId', async (req, res) => {
           lastMessageDate: msg.createdAt,
           lastMessageSenderId: msg.sender._id.toString(),
           isLastMessageMine: isSender,
+          lastMessageRead: Boolean(msg.read),
           lastMessageVideo: Boolean(msg.videoUrl),
           lastMessageImage: Boolean(msg.imageUrl),
           unreadCount: 0,

@@ -49,3 +49,6 @@ android/build/
 *.apk
 
 fix_clean.bat
+
+.git_backup/
+.git_backup
