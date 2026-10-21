@@ -81,7 +81,7 @@ import {
 } from './services/notificationService';
 
 const USER_SESSION_KEY = '@app_user_session';
-const DEFAULT_API_URL = 'https://lime-bee-336270.hostingersite.com';
+const DEFAULT_API_URL = 'https://antiquewhite-raccoon-491871.hostingersite.com';
 const IMGBB_API_KEY = 'a48914c52d05446e36a17b348de2201f';
 
 // خيارات الإيموجي الشائعة للتفاعل الفاخر مع الرسائل (WhatsApp / Telegram style)
@@ -5757,135 +5757,135 @@ export default function App() {
                         ]}
                         pointerEvents="box-none"
                       >
-                          <Animated.View
-                            style={[
-                              styles.floatingReactionEmojisCapsule,
-                              {
-                                opacity: reactionAnim,
-                                transform: [
-                                  {
-                                    scale: reactionAnim.interpolate({
-                                      inputRange: [0, 1],
-                                      outputRange: [0.75, 1],
-                                    }),
-                                  },
-                                ],
-                              },
-                            ]}
-                          >
-                            {REACTION_EMOJIS.map((emoji) => {
-                              const targetMsgId = reactionTargetMessage
-                                ? String(reactionTargetMessage._id || reactionTargetMessage.id || '')
-                                : '';
-                              const isCurrentReacted = Boolean(
-                                targetMsgId && messageReactions[targetMsgId] === emoji
-                              );
-                              return (
-                                <TouchableOpacity
-                                  key={emoji}
-                                  activeOpacity={0.65}
-                                  onPress={() => {
-                                    if (targetMsgId) {
-                                      handleSelectReaction(targetMsgId, emoji);
-                                    }
-                                  }}
-                                  style={[
-                                    styles.reactionEmojiBtn,
-                                    isCurrentReacted && styles.reactionEmojiBtnActive,
-                                  ]}
-                                >
-                                  <Text style={styles.reactionEmojiText}>{emoji}</Text>
-                                </TouchableOpacity>
-                              );
-                            })}
-                          </Animated.View>
-                        </View>
-
-                        {/* 2. نافذة الخيارات السريعة في الأسفل بجانب بعض وبالأيقونات فقط وبدون زر selectionner */}
-                        <View style={styles.bottomReactionActionsWrapper} pointerEvents="box-none">
-                          <Animated.View
-                            style={[
-                              styles.bottomReactionActionsBar,
-                              {
-                                opacity: reactionAnim,
-                                transform: [
-                                  {
-                                    translateY: reactionAnim.interpolate({
-                                      inputRange: [0, 1],
-                                      outputRange: [20, 0],
-                                    }),
-                                  },
-                                  {
-                                    scale: reactionAnim.interpolate({
-                                      inputRange: [0, 1],
-                                      outputRange: [0.85, 1],
-                                    }),
-                                  },
-                                ],
-                              },
-                            ]}
-                          >
-                            {/* أيقونة الرد */}
-                            <TouchableOpacity
-                              style={styles.bottomReactionActionBtn}
-                              activeOpacity={0.7}
-                              onPress={() => {
-                                const target = reactionTargetMessage;
-                                handleCloseReactionOverlay(true);
-                                setSelectedMessageIds([]);
-                                if (target) handleInitiateReply(target);
-                              }}
-                            >
-                              <View style={[styles.bottomReactionIconCircle, { backgroundColor: '#f0fdf4' }]}>
-                                <ReplyIcon color="#16a34a" size={19} />
-                              </View>
-                            </TouchableOpacity>
-
-                            {/* أيقونة النسخ */}
-                            <TouchableOpacity
-                              style={styles.bottomReactionActionBtn}
-                              activeOpacity={0.7}
-                              onPress={async () => {
-                                const target = reactionTargetMessage;
-                                handleCloseReactionOverlay(true);
-                                setSelectedMessageIds([]);
-                                if (target) {
-                                  const text =
-                                    parseMessageData(target).cleanContent || target.imageUrl || '';
-                                  if (text) {
-                                    try {
-                                      await Clipboard.setStringAsync(text);
-                                    } catch (e) { }
+                        <Animated.View
+                          style={[
+                            styles.floatingReactionEmojisCapsule,
+                            {
+                              opacity: reactionAnim,
+                              transform: [
+                                {
+                                  scale: reactionAnim.interpolate({
+                                    inputRange: [0, 1],
+                                    outputRange: [0.75, 1],
+                                  }),
+                                },
+                              ],
+                            },
+                          ]}
+                        >
+                          {REACTION_EMOJIS.map((emoji) => {
+                            const targetMsgId = reactionTargetMessage
+                              ? String(reactionTargetMessage._id || reactionTargetMessage.id || '')
+                              : '';
+                            const isCurrentReacted = Boolean(
+                              targetMsgId && messageReactions[targetMsgId] === emoji
+                            );
+                            return (
+                              <TouchableOpacity
+                                key={emoji}
+                                activeOpacity={0.65}
+                                onPress={() => {
+                                  if (targetMsgId) {
+                                    handleSelectReaction(targetMsgId, emoji);
                                   }
-                                }
-                              }}
-                            >
-                              <View style={[styles.bottomReactionIconCircle, { backgroundColor: '#eff6ff' }]}>
-                                <CopyIcon color="#2563eb" size={19} />
-                              </View>
-                            </TouchableOpacity>
-
-                            {/* أيقونة الحذف المباشر */}
-                            <TouchableOpacity
-                              style={styles.bottomReactionActionBtn}
-                              activeOpacity={0.7}
-                              onPress={() => {
-                                const target = reactionTargetMessage;
-                                handleCloseReactionOverlay(true);
-                                const targetId = target ? (target._id || target.id) : null;
-                                if (targetId) {
-                                  handleDeleteSingleMessageDirect(targetId);
-                                }
-                              }}
-                            >
-                              <View style={[styles.bottomReactionIconCircle, { backgroundColor: '#fef2f2' }]}>
-                                <TrashIcon color="#dc2626" size={19} />
-                              </View>
-                            </TouchableOpacity>
-                          </Animated.View>
-                        </View>
+                                }}
+                                style={[
+                                  styles.reactionEmojiBtn,
+                                  isCurrentReacted && styles.reactionEmojiBtnActive,
+                                ]}
+                              >
+                                <Text style={styles.reactionEmojiText}>{emoji}</Text>
+                              </TouchableOpacity>
+                            );
+                          })}
+                        </Animated.View>
                       </View>
-                    )}
+
+                      {/* 2. نافذة الخيارات السريعة في الأسفل بجانب بعض وبالأيقونات فقط وبدون زر selectionner */}
+                      <View style={styles.bottomReactionActionsWrapper} pointerEvents="box-none">
+                        <Animated.View
+                          style={[
+                            styles.bottomReactionActionsBar,
+                            {
+                              opacity: reactionAnim,
+                              transform: [
+                                {
+                                  translateY: reactionAnim.interpolate({
+                                    inputRange: [0, 1],
+                                    outputRange: [20, 0],
+                                  }),
+                                },
+                                {
+                                  scale: reactionAnim.interpolate({
+                                    inputRange: [0, 1],
+                                    outputRange: [0.85, 1],
+                                  }),
+                                },
+                              ],
+                            },
+                          ]}
+                        >
+                          {/* أيقونة الرد */}
+                          <TouchableOpacity
+                            style={styles.bottomReactionActionBtn}
+                            activeOpacity={0.7}
+                            onPress={() => {
+                              const target = reactionTargetMessage;
+                              handleCloseReactionOverlay(true);
+                              setSelectedMessageIds([]);
+                              if (target) handleInitiateReply(target);
+                            }}
+                          >
+                            <View style={[styles.bottomReactionIconCircle, { backgroundColor: '#f0fdf4' }]}>
+                              <ReplyIcon color="#16a34a" size={19} />
+                            </View>
+                          </TouchableOpacity>
+
+                          {/* أيقونة النسخ */}
+                          <TouchableOpacity
+                            style={styles.bottomReactionActionBtn}
+                            activeOpacity={0.7}
+                            onPress={async () => {
+                              const target = reactionTargetMessage;
+                              handleCloseReactionOverlay(true);
+                              setSelectedMessageIds([]);
+                              if (target) {
+                                const text =
+                                  parseMessageData(target).cleanContent || target.imageUrl || '';
+                                if (text) {
+                                  try {
+                                    await Clipboard.setStringAsync(text);
+                                  } catch (e) { }
+                                }
+                              }
+                            }}
+                          >
+                            <View style={[styles.bottomReactionIconCircle, { backgroundColor: '#eff6ff' }]}>
+                              <CopyIcon color="#2563eb" size={19} />
+                            </View>
+                          </TouchableOpacity>
+
+                          {/* أيقونة الحذف المباشر */}
+                          <TouchableOpacity
+                            style={styles.bottomReactionActionBtn}
+                            activeOpacity={0.7}
+                            onPress={() => {
+                              const target = reactionTargetMessage;
+                              handleCloseReactionOverlay(true);
+                              const targetId = target ? (target._id || target.id) : null;
+                              if (targetId) {
+                                handleDeleteSingleMessageDirect(targetId);
+                              }
+                            }}
+                          >
+                            <View style={[styles.bottomReactionIconCircle, { backgroundColor: '#fef2f2' }]}>
+                              <TrashIcon color="#dc2626" size={19} />
+                            </View>
+                          </TouchableOpacity>
+                        </Animated.View>
+                      </View>
+                    </View>
+                  )}
                 </View>
               </Modal>
 
