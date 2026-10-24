@@ -26,6 +26,7 @@ firebase-service-account.json
 *.zip
 **/*.zip
 app-release.apk
+!server/public/app-release.apk
 
 # Expo / React Native
 .expo/

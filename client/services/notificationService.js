@@ -4,27 +4,41 @@ import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 import { isRunningInExpoGo } from 'expo';
 
-// تهيئة معالج الإشعارات أثناء فتح التطبيق (Foreground)
+// تهيئة معالج الإشعارات أثناء فتح التطبيق (Foreground) متوافق مع كافة إصدارات Expo SDK الحديثة
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
     shouldShowAlert: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
     shouldPlaySound: true,
     shouldSetBadge: true,
+    priority: Notifications.AndroidNotificationPriority?.MAX || 'max',
   }),
 });
 
 /**
- * إعداد قناة الإشعارات لنظام أندرويد وطلب الأذونات والحصول على Expo Push Token
+ * إعداد قناة الإشعارات لنظام أندرويد وطلب الأذونات والحصول على Expo Push Token و FCM Token الأصلي
  */
 export async function registerForPushNotificationsAsync() {
   let token = null;
+  let fcmDeviceToken = null;
 
   try {
-    // إعداد قناة أندرويد المخصصة للرسائل (في التطبيق المستقل فقط لأن Expo Go لا يوفر NotificationsChannelsProvider)
+    // إعداد قنوات أندرويد المخصصة للرسائل (في التطبيق المستقل)
     if (Platform.OS === 'android' && !isRunningInExpoGo()) {
       try {
         await Notifications.setNotificationChannelAsync('messages', {
-          name: 'Système',
+          name: 'Messages et Système',
+          importance: Notifications.AndroidImportance.MAX,
+          vibrationPattern: [0, 250, 250, 250],
+          lightColor: '#e11d48',
+          sound: 'default',
+          enableVibrate: true,
+          showBadge: true,
+        });
+
+        await Notifications.setNotificationChannelAsync('default', {
+          name: 'Notifications Générales',
           importance: Notifications.AndroidImportance.MAX,
           vibrationPattern: [0, 250, 250, 250],
           lightColor: '#e11d48',
@@ -57,7 +71,6 @@ export async function registerForPushNotificationsAsync() {
     }
 
     // في Expo Go على أندرويد (SDK 53+)، لا تتوفر خدمة Push Tokens عن بعد
-    // يتم تجاوز الحصول على الرمز لتجنب أي أخطاء في Expo Go
     if (isRunningInExpoGo() && Platform.OS === 'android') {
       console.log('ℹ️ Expo Go sur Android ne supporte plus les push tokens distants (SDK 53+).');
       return null;
@@ -74,31 +87,39 @@ export async function registerForPushNotificationsAsync() {
       const tokenData = await Notifications.getExpoPushTokenAsync({
         projectId: projectId || '5b04062e-74df-4bd7-b484-8a1ccaa901b7',
       });
-      token = tokenData?.data;
-      console.log('📲 Expo Push Token généré avec succès :', token);
+      token = tokenData?.data || null;
+      if (token) {
+        console.log('📲 Expo Push Token généré avec succès :', token);
+      }
     } catch (expoErr) {
       console.warn('⚠️ Erreur getExpoPushTokenAsync :', expoErr?.message);
     }
 
-    // 2. محاولة الحصول على Device FCM Push Token الأصلي
-    let fcmDeviceToken = null;
+    // 2. محاولة الحصول على Device FCM Push Token الأصلي والمباشر
     try {
       const deviceData = await Notifications.getDevicePushTokenAsync();
-      fcmDeviceToken = deviceData?.data;
-      console.log('🔥 Device FCM Token généré avec succès :', fcmDeviceToken);
+      fcmDeviceToken = typeof deviceData === 'string' ? deviceData : (deviceData?.data || null);
+      if (fcmDeviceToken) {
+        console.log('🔥 Device FCM Token généré avec succès :', fcmDeviceToken);
+      }
     } catch (fcmErr) {
       console.warn('⚠️ Erreur getDevicePushTokenAsync :', fcmErr?.message);
     }
 
-    // إذا لم ينجح Expo Token، نعتمد FCM Token كرمز أساسي
+    // إذا لم يتوفر Expo Push Token، نعتمد FCM Token كرمز أساسي
     if (!token && fcmDeviceToken) {
       token = fcmDeviceToken;
     }
 
+    const cleanExpoToken = token && typeof token === 'string' && token.startsWith('Expo') ? token : null;
+    const cleanFcmToken =
+      (fcmDeviceToken && typeof fcmDeviceToken === 'string' && fcmDeviceToken.length > 20 ? fcmDeviceToken : null) ||
+      (token && typeof token === 'string' && !token.startsWith('Expo') && token.length > 20 ? token : null);
+
     return {
-      token,
-      expoToken: token && token.startsWith('ExponentPushToken') ? token : null,
-      fcmToken: fcmDeviceToken || (token && !token.startsWith('ExponentPushToken') ? token : null),
+      token: token || cleanFcmToken,
+      expoToken: cleanExpoToken,
+      fcmToken: cleanFcmToken,
     };
   } catch (error) {
     console.warn('⚠️ Impossible d\'obtenir le push token :', error.message);
@@ -117,15 +138,18 @@ export async function registerDeviceTokenWithServer(apiUrl, userId = null, token
     typeof tokenData === 'string'
       ? tokenData
       : tokenData?.expoToken || tokenData?.token || tokenData?.fcmToken;
+
   const fcmToken =
-    typeof tokenData === 'object' ? tokenData?.fcmToken : null;
+    typeof tokenData === 'object' && tokenData?.fcmToken
+      ? tokenData.fcmToken
+      : (typeof pushToken === 'string' && !pushToken.startsWith('Expo') ? pushToken : null);
 
   if (!pushToken && !fcmToken) return false;
 
   try {
     const payload = {
       pushToken: pushToken || fcmToken,
-      fcmToken: fcmToken || undefined,
+      fcmToken: fcmToken || (pushToken && !pushToken.startsWith('Expo') ? pushToken : undefined),
       platform: Platform.OS,
       deviceName: Device.deviceName || `${Device.manufacturer || ''} ${Device.modelName || ''}`.trim() || 'Android Device',
     };
@@ -180,3 +204,4 @@ export async function unregisterDeviceTokenFromServer(apiUrl, userId, pushToken)
     return false;
   }
 }
+

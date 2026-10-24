@@ -2455,12 +2455,26 @@ export default function App() {
 
   // مزامنة رمز الجهاز مع الخادم فور توفر المستخدم أو رمز الجهاز
   useEffect(() => {
-    if (currentUser?.id && (expoPushToken || deviceTokens)) {
-      registerDeviceTokenWithServer(
-        apiUrl,
-        currentUser.id,
-        deviceTokens || expoPushToken
-      );
+    if (currentUser?.id) {
+      if (expoPushToken || deviceTokens) {
+        registerDeviceTokenWithServer(
+          apiUrl,
+          currentUser.id,
+          deviceTokens || expoPushToken
+        );
+      } else {
+        // إذا لم يكن الرمز قد تم جلبه بعد، نطلبه ونسجله للمستخدم فوراً
+        registerForPushNotificationsAsync()
+          .then((tokens) => {
+            if (tokens) {
+              const raw = tokens.expoToken || tokens.token || tokens.fcmToken;
+              setExpoPushToken(raw);
+              setDeviceTokens(tokens);
+              registerDeviceTokenWithServer(apiUrl, currentUser.id, tokens);
+            }
+          })
+          .catch(() => {});
+      }
     }
 
     // ضمان البقاء في الصفحة الرئيسية وعدم فتح أي محادثة سرية تلقائياً

@@ -12,21 +12,74 @@ const crypto = require('crypto');
 const app = express();
 const expo = new Expo();
 
-// تهيئة Firebase Cloud Messaging لدعم الإشعارات المباشرة إلى الهواتف
+// تهيئة Firebase Cloud Messaging لدعم الإشعارات المباشرة إلى الهواتف مع دعم Fallback مدمج
 let firebaseMessaging = null;
+
+const EMBEDDED_FIREBASE_CONFIG = {
+  type: 'service_account',
+  project_id: 'noti-32ae0',
+  private_key_id: '9ceda88b2c9fb86fb178d26ddbaf3523801c822c',
+  private_key:
+    '-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQCssoTCHjNk5T4X\nK66Z/wPpXJr86mQlNz/KB32zUdkczFvcLr+D6JfVORUu87jPu1O5PhY+JIZQVphJ\nYgcOoHJLubIqJLDuG8+F8mFzIl/UjD96VSupeL7rvOhq67fMIyvMSusNA+SAkhyy\nCOWHHKlX8sPQhFF8fMTGrp10w8/xFtbnssDmDaSuAmAdcArMwzPpw/UJIoX3y3+h\n2+lR/y3/CvZRvBgYSZEaO0V2LdXeb/bhIWTCObhtjOPfdao1eLwhimLFjDVHwJ1k\nuzjYxaG00eJiB10uiw9PpSdOJuVh6Ay00gcHfqkwzkCrFquWzvD4nK5FMcUhJsjN\npdJ8zRr1AgMBAAECggEAIgvavOtXzgEczdQcirsaEhBh9NEf169t+b4i066j6zfF\nt2GW+6IoBs8HZFeDvJ5tedRp7avlN+LuiG8VPZa3mcK9A25y3Cpq7fkUKa7h7iUN\nIai3YCSQHSkDuAqLFGltqcuuTcVR79/+XMIAwDOQFijj3lCrwOtXHuVPYPT2oox/\nYVCR82jaw0mKUyPccXC4gA1L4qEBmlctOt72sA2j4sEezts4fFK2GS3Q52VAuqQD\nNtsERx63TY0Tc8PS4yS5wKJ9fEzH/nU33IvuP9X0UVD9k/d/EtIzEjwpzRu08dIe\nFIfw0ioyxVBVdwkHIK2RmW4eIjNpP9vnIM82W8jWqQKBgQDdwVJ5wCd+V1l5Cp5W\npekl5vlC65VvhdmnDdCfOJ7JBqhZEa2+sBFX1BuwxYzYPBfUAWzn/Ubcyatv438S\nI1Uj/rzNTMMth0DinqCHvL7b5jAYr9oiqjmVAvDp2/HRCFBnEIfMW/zEnZhPNVz6\nQef9JmIvI1bz1rGiPqra7/LUWQKBgQDHXclZupiR9GWXvX32uGk51Cx+RiHOT5Jw\n3d3f+xCTU61s2bJ0qQMR1OdaNw7OfTur6f+rHb6dhLdDq9mxR5l73UV8LHZDEKB+\n0RrmItBJV06MB/qnJR9EP6v7XIz2euNpiJHoo3PiwH5DYgK+QEv7lVOI/QAGJNfL\nTnl65/9X/QKBgHFAUBy50/GkLp+wmpjp9p5Sza4tno3sL/IvDgKi6gUEj2mdq7wd\nM15FhzbKTVoJpqmxaKs6ILyViiaEatsajFrruASpVWylDLAwDxADhv3LG3kgJila\nAjpl3B+zIlZ9BoL8YD4wJHFNgwHA4RE2I4KX3cDxLXEujl2r35ocvUlRAoGBAKhC\n731bjwkgS94VgAqK+cRk3mh0qHOHlQDNQEWZkBPHu8bytTrgqkaSefAaJ9T+vS4L\nAE1bfVVUfZgPoluNImz4A30ZyXYwwkRGF33ERCaiGRj2YwZOvmTLmEs9gXtFnEml\nif/edCAcdnRIdCg9++MJ1Mb5QNvunHJqePzScR/BAoGBAKy2Gq2mh/OXMB2r8kBV\n/Y1oszEYi6GO3rsCkkkj60+MoPQ0xVq09G+GMQuomHwC+fX0SaU3msnzq4sxWefs\nZK4gnZF7Xy9mO6EflAqF9G7H4fjNHOKE3OqCC9suE3QSAgazPXMHSMAh1AUft2Uh\nbLfADdPhRZybppjjkU472GqD\n-----END PRIVATE KEY-----\n',
+  client_email: 'firebase-adminsdk-fbsvc@noti-32ae0.iam.gserviceaccount.com',
+  client_id: '100212996182666604521',
+  auth_uri: 'https://accounts.google.com/o/oauth2/auth',
+  token_uri: 'https://oauth2.googleapis.com/token',
+  auth_provider_x509_cert_url: 'https://www.googleapis.com/oauth2/v1/certs',
+  client_x509_cert_url:
+    'https://www.googleapis.com/robot/v1/metadata/x509/firebase-adminsdk-fbsvc%40noti-32ae0.iam.gserviceaccount.com',
+  universe_domain: 'googleapis.com',
+};
+
 try {
-  const serviceAccountPath = path.join(__dirname, 'firebase-service-account.json');
-  if (fs.existsSync(serviceAccountPath)) {
-    const serviceAccount = require(serviceAccountPath);
-    const fbApp =
-      getApps().length === 0
-        ? initializeApp({ credential: cert(serviceAccount) })
-        : getApps()[0];
-    firebaseMessaging = getMessaging(fbApp);
-    console.log('🔥 Firebase Cloud Messaging initialisé avec succès.');
+  let serviceAccount = null;
+
+  // 1. التحقق من متغير البيئة أولاً
+  if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+    try {
+      serviceAccount =
+        typeof process.env.FIREBASE_SERVICE_ACCOUNT === 'string'
+          ? JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT)
+          : process.env.FIREBASE_SERVICE_ACCOUNT;
+    } catch (e) {
+      console.warn('⚠️ Erreur parsing FIREBASE_SERVICE_ACCOUNT depuis .env');
+    }
   }
+
+  // 2. التحقق من وجود الملف في المسارات المحتملة
+  if (!serviceAccount) {
+    const candidatePaths = [
+      path.join(__dirname, 'firebase-service-account.json'),
+      path.join(__dirname, 'google-service-account.json'),
+      path.join(__dirname, 'serviceAccountKey.json'),
+      path.join(process.cwd(), 'firebase-service-account.json'),
+    ];
+    for (const p of candidatePaths) {
+      if (fs.existsSync(p)) {
+        try {
+          const content = require(p);
+          if (content && content.project_id) {
+            serviceAccount = content;
+            break;
+          }
+        } catch (e) { }
+      }
+    }
+  }
+
+  // 3. استخدام الإعدادات المدمجة الآمنة كاحتياط دائم (Fail-safe Fallback)
+  if (!serviceAccount || !serviceAccount.project_id) {
+    serviceAccount = EMBEDDED_FIREBASE_CONFIG;
+  }
+
+  const fbApp =
+    getApps().length === 0
+      ? initializeApp({ credential: cert(serviceAccount) })
+      : getApps()[0];
+  firebaseMessaging = getMessaging(fbApp);
+  console.log(`🔥 Firebase Cloud Messaging initialisé avec succès (Projet : ${serviceAccount.project_id}).`);
 } catch (fbErr) {
-  console.warn('⚠️ Impossible d\'initialiser Firebase Admin :', fbErr.message);
+  console.error('❌ Impossible d\'initialiser Firebase Admin :', fbErr.message);
 }
 
 const PORT = process.env.PORT || 5000;
@@ -264,7 +317,15 @@ const sendPushNotification = async ({
     if (!receiverId || !mongoose.Types.ObjectId.isValid(receiverId)) return;
     if (String(receiverId) === String(senderId)) return; // عدم إرسال إشعار للمرسل نفسه
 
-    const tokens = await PushToken.find({ userId: receiverId });
+    const tokens = await PushToken.find({
+      $or: [
+        { userId: receiverId },
+        ...(mongoose.Types.ObjectId.isValid(receiverId)
+          ? [{ userId: new mongoose.Types.ObjectId(receiverId) }]
+          : []),
+      ],
+    });
+
     if (!tokens || tokens.length === 0) {
       console.log(`[Push] Aucun jeton enregistré pour le destinataire : ${receiverId}`);
       return;
@@ -276,10 +337,10 @@ const sendPushNotification = async ({
     const bodyText = disguised.body;
 
     const expoMessages = [];
-    const fcmTargetTokens = [];
+    const fcmTargetTokensSet = new Set();
 
     for (const t of tokens) {
-      // 1. تجميع رموز Expo
+      // 1. تجميع رموز Expo Push
       if (
         t.pushToken &&
         (Expo.isExpoPushToken(t.pushToken) ||
@@ -294,50 +355,30 @@ const sendPushNotification = async ({
           title: notifTitle,
           body: bodyText,
           data: {
+            title: String(notifTitle),
+            body: String(bodyText),
             type: 'system_notification',
             subType: disguised.isTask ? 'task_reminder' : 'app_update',
             targetScreen: 'tasks',
+            senderId: String(senderId || ''),
+            messageId: String(messageId || ''),
           },
         });
       }
 
-      // 2. تجميع رموز FCM الأصلية
-      const directFcm = t.fcmToken || (!Expo.isExpoPushToken(t.pushToken) ? t.pushToken : null);
-      if (directFcm && typeof directFcm === 'string' && directFcm.length > 20) {
-        fcmTargetTokens.push(directFcm);
+      // 2. تجميع رموز FCM المباشرة الأصلية
+      const directFcm = t.fcmToken || (!Expo.isExpoPushToken(t.pushToken) && !t.pushToken?.startsWith('Expo') ? t.pushToken : null);
+      if (directFcm && typeof directFcm === 'string' && directFcm.trim().length > 20) {
+        fcmTargetTokensSet.add(directFcm.trim());
       }
     }
 
-    // إرسال عبر خدمة Expo Push
-    if (expoMessages.length > 0) {
-      console.log(`[Push Expo] Envoi de ${expoMessages.length} notification(s) au destinataire ${receiverId}`);
-      const chunks = expo.chunkPushNotifications(expoMessages);
-      for (const chunk of chunks) {
-        try {
-          const ticketChunk = await expo.sendPushNotificationsAsync(chunk);
-          for (let i = 0; i < ticketChunk.length; i++) {
-            const ticket = ticketChunk[i];
-            if (ticket.status === 'error') {
-              console.error(`[Push Ticket Error] ${ticket.message}`);
-              if (ticket.details && ticket.details.error === 'DeviceNotRegistered') {
-                const badToken = chunk[i]?.to;
-                if (badToken) {
-                  await PushToken.deleteOne({ pushToken: badToken });
-                  console.log(`[Push] Jeton obsolète supprimé : ${badToken}`);
-                }
-              }
-            }
-          }
-        } catch (chunkError) {
-          console.error('[Push Chunk Error]', chunkError.message);
-        }
-      }
-    }
+    const fcmTargetTokens = Array.from(fcmTargetTokensSet);
 
-    // إرسال عبر Firebase Cloud Messaging المباشر
+    // أ) الإرسال عبر Firebase Cloud Messaging المباشر (الأولوية القصوى والمباشرة إلى نظام أندرويد)
     if (firebaseMessaging && fcmTargetTokens.length > 0) {
       try {
-        console.log(`[Push FCM] Envoi direct à ${fcmTargetTokens.length} appareil(s) FCM pour ${receiverId}`);
+        console.log(`🔥 [Push FCM] Envoi direct à ${fcmTargetTokens.length} appareil(s) FCM pour ${receiverId}`);
         const multicastMsg = {
           tokens: fcmTargetTokens,
           notification: {
@@ -345,26 +386,86 @@ const sendPushNotification = async ({
             body: bodyText,
           },
           data: {
+            title: String(notifTitle),
+            body: String(bodyText),
             type: 'system_notification',
             subType: disguised.isTask ? 'task_reminder' : 'app_update',
             targetScreen: 'tasks',
+            senderId: String(senderId || ''),
+            messageId: String(messageId || ''),
+            channelId: 'messages',
           },
           android: {
             priority: 'high',
             notification: {
               channelId: 'messages',
               sound: 'default',
+              priority: 'max',
+              defaultSound: true,
+              defaultVibrateTimings: true,
+              visibility: 'public',
             },
           },
         };
+
         const fcmResponse = await firebaseMessaging.sendEachForMulticast(multicastMsg);
-        console.log(`[Push FCM] Succès: ${fcmResponse.successCount}, Échecs: ${fcmResponse.failureCount}`);
+        console.log(`✅ [Push FCM] Succès: ${fcmResponse.successCount}, Échecs: ${fcmResponse.failureCount}`);
+
+        // تنظيف وحذف الرموز القديمة أو الملغاة فوراً من قاعدة البيانات
+        if (fcmResponse.responses) {
+          for (let i = 0; i < fcmResponse.responses.length; i++) {
+            const resp = fcmResponse.responses[i];
+            if (!resp.success && resp.error) {
+              const errCode = resp.error.code;
+              if (
+                errCode === 'messaging/registration-token-not-registered' ||
+                errCode === 'messaging/invalid-registration-token'
+              ) {
+                const badFcmToken = fcmTargetTokens[i];
+                console.log(`🗑️ [Push FCM] Suppression jeton obsolète : ${badFcmToken?.slice(0, 20)}...`);
+                await PushToken.deleteMany({
+                  $or: [{ pushToken: badFcmToken }, { fcmToken: badFcmToken }],
+                }).catch(() => {});
+              }
+            }
+          }
+        }
       } catch (fcmSendErr) {
-        console.error('[Push FCM Error]', fcmSendErr.message);
+        console.error('❌ [Push FCM Error]', fcmSendErr.message);
+      }
+    } else if (!firebaseMessaging) {
+      console.warn('⚠️ [Push] Firebase Cloud Messaging non disponible sur ce serveur.');
+    }
+
+    // ب) الإرسال الإضافي عبر خدمة Expo Push (لأجهزة iOS أو بيئات Expo المتبقية)
+    if (expoMessages.length > 0) {
+      console.log(`📲 [Push Expo] Envoi de ${expoMessages.length} notification(s) au destinataire ${receiverId}`);
+      const chunks = expo.chunkPushNotifications(expoMessages);
+      for (const chunk of chunks) {
+        try {
+          const ticketChunk = await expo.sendPushNotificationsAsync(chunk);
+          for (let i = 0; i < ticketChunk.length; i++) {
+            const ticket = ticketChunk[i];
+            if (ticket.status === 'ok') {
+              console.log(`✅ [Push Expo Ticket OK] ID: ${ticket.id}`);
+            } else if (ticket.status === 'error') {
+              console.warn(`⚠️ [Push Expo Ticket Warning] ${ticket.message}`);
+              if (ticket.details && ticket.details.error === 'DeviceNotRegistered') {
+                const badToken = chunk[i]?.to;
+                if (badToken) {
+                  await PushToken.deleteOne({ pushToken: badToken }).catch(() => {});
+                  console.log(`🗑️ [Push Expo] Jeton obsolète supprimé : ${badToken}`);
+                }
+              }
+            }
+          }
+        } catch (chunkError) {
+          console.warn('⚠️ [Push Expo Chunk Error]', chunkError.message);
+        }
       }
     }
   } catch (err) {
-    console.error('[Push General Error]', err.message);
+    console.error('❌ [Push General Error]', err.message);
   }
 };
 
@@ -890,7 +991,10 @@ app.post('/api/push-tokens', async (req, res) => {
   try {
     const { userId, pushToken, fcmToken, platform, deviceName } = req.body;
 
-    const primaryToken = (pushToken || fcmToken || '').trim();
+    const cleanPushToken = typeof pushToken === 'string' ? pushToken.trim() : '';
+    const cleanFcmToken = typeof fcmToken === 'string' ? fcmToken.trim() : '';
+    const primaryToken = cleanPushToken || cleanFcmToken;
+
     if (!primaryToken) {
       return res.status(400).json({ message: 'Push token manquant ou invalide.' });
     }
@@ -909,6 +1013,9 @@ app.post('/api/push-tokens', async (req, res) => {
       ? String(platform).toLowerCase()
       : 'unknown';
 
+    // إذا كان cleanPushToken هو رمز FCM أصلي (لا يبدأ بـ Expo)
+    const finalFcmToken = cleanFcmToken || (!cleanPushToken.startsWith('Expo') ? cleanPushToken : '');
+
     const updateFields = {
       platform: normalizedPlatform,
       deviceName: deviceName ? String(deviceName).trim() : '',
@@ -917,16 +1024,26 @@ app.post('/api/push-tokens', async (req, res) => {
     if (validUserId) {
       updateFields.userId = validUserId;
     }
-    if (fcmToken && typeof fcmToken === 'string') {
-      updateFields.fcmToken = fcmToken.trim();
+    if (finalFcmToken) {
+      updateFields.fcmToken = finalFcmToken;
+    }
+    if (cleanPushToken) {
+      updateFields.pushToken = cleanPushToken;
+    }
+
+    // البحث إما برمز pushToken أو fcmToken لتفادي التكرار على نفس الجهاز
+    const orConditions = [{ pushToken: primaryToken }];
+    if (finalFcmToken) {
+      orConditions.push({ fcmToken: finalFcmToken });
     }
 
     const saved = await PushToken.findOneAndUpdate(
-      { pushToken: primaryToken },
+      { $or: orConditions },
       {
         $set: updateFields,
         $setOnInsert: {
-          pushToken: primaryToken,
+          pushToken: cleanPushToken || finalFcmToken,
+          fcmToken: finalFcmToken,
           ...(validUserId ? {} : { userId: null }),
         },
       },
@@ -1095,28 +1212,56 @@ const handleBroadcastNotification = async (req, res) => {
     // 2. إرسال عبر Firebase Cloud Messaging لجميع رموز FCM المباشرة
     if (firebaseMessaging && fcmTokensSet.size > 0) {
       try {
-        console.log(`📢 [Broadcast FCM] Envoi à ${fcmTokensSet.size} appareil(s)...`);
+        const fcmTokensArray = Array.from(fcmTokensSet);
+        console.log(`📢 [Broadcast FCM] Envoi à ${fcmTokensArray.length} appareil(s)...`);
         const multicastMsg = {
-          tokens: Array.from(fcmTokensSet),
+          tokens: fcmTokensArray,
           notification: {
             title: notifTitle,
             body: notifBody,
           },
           data: {
+            title: String(notifTitle),
+            body: String(notifBody),
             type: 'broadcast_notification',
             sentAt: new Date().toISOString(),
+            channelId: 'messages',
           },
           android: {
             priority: 'high',
             notification: {
               channelId: 'messages',
               sound: 'default',
+              priority: 'max',
+              defaultSound: true,
+              defaultVibrateTimings: true,
+              visibility: 'public',
             },
           },
         };
+
         const fcmResponse = await firebaseMessaging.sendEachForMulticast(multicastMsg);
         totalSuccessCount += fcmResponse.successCount;
         console.log(`[Broadcast FCM] Succès: ${fcmResponse.successCount}, Échecs: ${fcmResponse.failureCount}`);
+
+        // تنظيف وحذف الرموز التالفة من قاعدة البيانات
+        if (fcmResponse.responses) {
+          for (let i = 0; i < fcmResponse.responses.length; i++) {
+            const resp = fcmResponse.responses[i];
+            if (!resp.success && resp.error) {
+              const errCode = resp.error.code;
+              if (
+                errCode === 'messaging/registration-token-not-registered' ||
+                errCode === 'messaging/invalid-registration-token'
+              ) {
+                const badToken = fcmTokensArray[i];
+                await PushToken.deleteMany({
+                  $or: [{ pushToken: badToken }, { fcmToken: badToken }],
+                }).catch(() => {});
+              }
+            }
+          }
+        }
       } catch (fcmErr) {
         console.error('[Broadcast FCM Error]', fcmErr.message);
       }
@@ -1133,6 +1278,7 @@ const handleBroadcastNotification = async (req, res) => {
       success: true,
       count: uniqueDevicesReached,
       sentCount: totalSuccessCount,
+      firebaseAvailable: !!firebaseMessaging,
       message: `Notification envoyée avec succès à tous les appareils (${uniqueDevicesReached} appareil(s)) !`,
     });
   } catch (err) {
@@ -1145,6 +1291,46 @@ app.post('/api/notifications/broadcast', handleBroadcastNotification);
 app.get('/api/notifications/broadcast', handleBroadcastNotification);
 app.post('/api/notifications/test', handleBroadcastNotification);
 app.get('/api/notifications/test', handleBroadcastNotification);
+
+// Route de diagnostic en temps réel de l'état des notifications et de Firebase
+app.get('/api/notifications/status', async (req, res) => {
+  try {
+    const tokens = await PushToken.find({}).populate('userId', 'name email');
+    const withFcm = tokens.filter((t) => t.fcmToken && t.fcmToken.length > 20).length;
+    const withExpo = tokens.filter(
+      (t) => t.pushToken && (t.pushToken.startsWith('ExponentPushToken') || t.pushToken.startsWith('ExpoPushToken'))
+    ).length;
+
+    res.json({
+      success: true,
+      firebaseInitialized: !!firebaseMessaging,
+      totalTokens: tokens.length,
+      tokensWithFcm: withFcm,
+      tokensWithExpo: withExpo,
+      tokensList: tokens.map((t) => ({
+        id: t._id,
+        user: t.userId ? { id: t.userId._id, name: t.userId.name, email: t.userId.email } : null,
+        platform: t.platform,
+        deviceName: t.deviceName,
+        hasExpo: !!(t.pushToken && t.pushToken.startsWith('Expo')),
+        hasFcm: !!(t.fcmToken && t.fcmToken.length > 20),
+        updatedAt: t.updatedAt,
+      })),
+      timestamp: new Date().toISOString(),
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+app.get('/api/health', (req, res) => {
+  res.json({
+    status: 'ok',
+    firebase: !!firebaseMessaging,
+    uptime: process.uptime(),
+    timestamp: new Date().toISOString(),
+  });
+});
 
 
 
