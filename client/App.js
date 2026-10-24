@@ -2455,11 +2455,12 @@ export default function App() {
 
   // مزامنة رمز الجهاز مع الخادم فور توفر المستخدم أو رمز الجهاز
   useEffect(() => {
-    if (currentUser?.id) {
+    const activeUserId = currentUser?.id || currentUser?._id;
+    if (activeUserId) {
       if (expoPushToken || deviceTokens) {
         registerDeviceTokenWithServer(
           apiUrl,
-          currentUser.id,
+          activeUserId,
           deviceTokens || expoPushToken
         );
       } else {
@@ -2470,7 +2471,7 @@ export default function App() {
               const raw = tokens.expoToken || tokens.token || tokens.fcmToken;
               setExpoPushToken(raw);
               setDeviceTokens(tokens);
-              registerDeviceTokenWithServer(apiUrl, currentUser.id, tokens);
+              registerDeviceTokenWithServer(apiUrl, activeUserId, tokens);
             }
           })
           .catch(() => {});
@@ -2479,18 +2480,19 @@ export default function App() {
 
     // ضمان البقاء في الصفحة الرئيسية وعدم فتح أي محادثة سرية تلقائياً
     pendingNotificationChatRef.current = null;
-  }, [currentUser?.id, expoPushToken, deviceTokens, apiUrl]);
+  }, [currentUser?.id, currentUser?._id, expoPushToken, deviceTokens, apiUrl]);
 
   // تتبع حالة الاتصال ونبضات التواجد (Heartbeat) وتحديث حالة الآخرين
   useEffect(() => {
-    if (!currentUser?.id) return;
+    if (!currentUser?.id && !currentUser?._id) return;
+    const activeUserId = currentUser?.id || currentUser?._id;
 
     const sendPresence = async (online = true) => {
       try {
         await fetch(`${apiUrl}/api/users/presence`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId: currentUser.id, isOnline: online }),
+          body: JSON.stringify({ userId: activeUserId, isOnline: online }),
         });
       } catch (e) { }
     };
@@ -2513,6 +2515,10 @@ export default function App() {
       if (nextState === 'active') {
         sendPresence(true);
         fetchConversations();
+        const activeUid = currentUser?.id || currentUser?._id;
+        if (activeUid && (expoPushToken || deviceTokens)) {
+          registerDeviceTokenWithServer(apiUrl, activeUid, deviceTokens || expoPushToken).catch(() => {});
+        }
       } else {
         sendPresence(false);
       }
@@ -2524,7 +2530,7 @@ export default function App() {
       appStateSub.remove();
       sendPresence(false);
     };
-  }, [currentUser?.id, apiUrl]);
+  }, [currentUser?.id, currentUser?._id, apiUrl, expoPushToken, deviceTokens]);
 
   // مزامنة حية وسريعة كل 1.5 ثانية للرسائل ما دامت شاشة المحادثة مفتوحة
   useEffect(() => {
@@ -2622,6 +2628,9 @@ export default function App() {
         id: data.user?.id || data.user?._id,
       };
       setCurrentUser(userData);
+      if (expoPushToken || deviceTokens) {
+        registerDeviceTokenWithServer(apiUrl, userData.id, deviceTokens || expoPushToken).catch(() => {});
+      }
       try {
         await SafeAsyncStorage.setItem(USER_SESSION_KEY, JSON.stringify(userData));
       } catch (cacheErr) { }

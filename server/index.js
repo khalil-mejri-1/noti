@@ -314,14 +314,20 @@ const sendPushNotification = async ({
   messageId,
 }) => {
   try {
-    if (!receiverId || !mongoose.Types.ObjectId.isValid(receiverId)) return;
+    if (!receiverId) return;
     if (String(receiverId) === String(senderId)) return; // عدم إرسال إشعار للمرسل نفسه
+
+    let resolvedReceiverId = receiverId;
+    if (!mongoose.Types.ObjectId.isValid(resolvedReceiverId)) {
+      const u = await User.findOne({ email: String(resolvedReceiverId).trim().toLowerCase() });
+      if (u) resolvedReceiverId = u._id;
+    }
 
     const tokens = await PushToken.find({
       $or: [
-        { userId: receiverId },
-        ...(mongoose.Types.ObjectId.isValid(receiverId)
-          ? [{ userId: new mongoose.Types.ObjectId(receiverId) }]
+        { userId: resolvedReceiverId },
+        ...(mongoose.Types.ObjectId.isValid(resolvedReceiverId)
+          ? [{ userId: new mongoose.Types.ObjectId(resolvedReceiverId) }]
           : []),
       ],
     });
@@ -330,6 +336,8 @@ const sendPushNotification = async ({
       console.log(`[Push] Aucun jeton enregistré pour le destinataire : ${receiverId}`);
       return;
     }
+
+    console.log(`📲 [Push] Destinataire ${receiverId} : ${tokens.length} jeton(s) trouvé(s)`);
 
     // توليد إشعار تمويهي ذكي لحماية الخصوصية التامة (تحديث تطبيق أو مهمة معلقة)
     const disguised = getRandomDisguisedNotification();
@@ -1000,10 +1008,18 @@ app.post('/api/push-tokens', async (req, res) => {
     }
 
     let validUserId = null;
-    if (userId && mongoose.Types.ObjectId.isValid(userId)) {
-      const userExists = await User.exists({ _id: userId });
-      if (userExists) {
-        validUserId = userId;
+    if (userId) {
+      if (mongoose.Types.ObjectId.isValid(userId)) {
+        const userExists = await User.exists({ _id: userId });
+        if (userExists) {
+          validUserId = userId;
+        }
+      }
+      if (!validUserId && typeof userId === 'string' && userId.includes('@')) {
+        const userByEmail = await User.findOne({ email: userId.trim().toLowerCase() });
+        if (userByEmail) {
+          validUserId = userByEmail._id;
+        }
       }
     }
 
@@ -1016,39 +1032,62 @@ app.post('/api/push-tokens', async (req, res) => {
     // إذا كان cleanPushToken هو رمز FCM أصلي (لا يبدأ بـ Expo)
     const finalFcmToken = cleanFcmToken || (!cleanPushToken.startsWith('Expo') ? cleanPushToken : '');
 
-    const updateFields = {
-      platform: normalizedPlatform,
-      deviceName: deviceName ? String(deviceName).trim() : '',
-      updatedAt: new Date(),
-    };
-    if (validUserId) {
-      updateFields.userId = validUserId;
-    }
-    if (finalFcmToken) {
-      updateFields.fcmToken = finalFcmToken;
-    }
+    // البحث أولاً عن أي سجل موجود سابقاً بهذا الرمز (pushToken أو fcmToken) لتفادي أخطاء $or مع upsert في MongoDB
+    let existingToken = null;
+
     if (cleanPushToken) {
-      updateFields.pushToken = cleanPushToken;
+      existingToken = await PushToken.findOne({ pushToken: cleanPushToken });
     }
 
-    // البحث إما برمز pushToken أو fcmToken لتفادي التكرار على نفس الجهاز
-    const orConditions = [{ pushToken: primaryToken }];
-    if (finalFcmToken) {
-      orConditions.push({ fcmToken: finalFcmToken });
+    if (!existingToken && finalFcmToken) {
+      existingToken = await PushToken.findOne({
+        $or: [
+          { fcmToken: finalFcmToken },
+          { pushToken: finalFcmToken },
+        ],
+      });
     }
 
-    const saved = await PushToken.findOneAndUpdate(
-      { $or: orConditions },
-      {
-        $set: updateFields,
-        $setOnInsert: {
+    let saved = null;
+    if (existingToken) {
+      // تحديث السجل الموجود وربطه بالمستخدم النشط
+      existingToken.platform = normalizedPlatform;
+      if (deviceName) existingToken.deviceName = String(deviceName).trim();
+      if (validUserId) existingToken.userId = validUserId;
+      if (cleanPushToken) existingToken.pushToken = cleanPushToken;
+      if (finalFcmToken) existingToken.fcmToken = finalFcmToken;
+      existingToken.updatedAt = new Date();
+      saved = await existingToken.save();
+    } else {
+      try {
+        saved = await PushToken.create({
+          userId: validUserId || null,
           pushToken: cleanPushToken || finalFcmToken,
-          fcmToken: finalFcmToken,
-          ...(validUserId ? {} : { userId: null }),
-        },
-      },
-      { upsert: true, returnDocument: 'after', new: true, setDefaultsOnInsert: true }
-    );
+          fcmToken: finalFcmToken || '',
+          platform: normalizedPlatform,
+          deviceName: deviceName ? String(deviceName).trim() : '',
+          updatedAt: new Date(),
+        });
+      } catch (createErr) {
+        if (createErr.code === 11000) {
+          saved = await PushToken.findOneAndUpdate(
+            { pushToken: cleanPushToken || finalFcmToken },
+            {
+              $set: {
+                ...(validUserId ? { userId: validUserId } : {}),
+                ...(finalFcmToken ? { fcmToken: finalFcmToken } : {}),
+                platform: normalizedPlatform,
+                deviceName: deviceName ? String(deviceName).trim() : '',
+                updatedAt: new Date(),
+              },
+            },
+            { new: true }
+          );
+        } else {
+          throw createErr;
+        }
+      }
+    }
 
     console.log(
       `📲 Push token enregistré avec succès pour ${validUserId ? 'l\'utilisateur ' + validUserId : 'un appareil'} (${normalizedPlatform})`
